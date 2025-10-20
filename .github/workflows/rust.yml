@@ -118,13 +118,19 @@ jobs:
           else
             TAG=$GITHUB_SHA
           fi
+          
           mv ./target/$TARGET/release/$EXEC ./$EXEC
-          mkdir ./artifacts/$TARGET_SHORT
-          mv ./$EXEC ./artifacts/$TARGET_SHORT/$EXEC
+          tar -czf ./artifacts/$NAME-$TARGET-$TAG.tar.gz $EXEC
+          
+          cp ./$EXEC ./$TARGET_SHORT
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.TARGET_SHORT }}
       - name: Archive artifact
         uses: actions/upload-artifact@v4
         with:
-          name: result-$TAG
+          name: result
           path: |
             ./artifacts
 

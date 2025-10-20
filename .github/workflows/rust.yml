@@ -62,6 +62,7 @@ jobs:
     env:
       NAME: leech
       TARGET: ${{ matrix.TARGET }}
+      TARGET_SHORT: ${{ matrix.TARGET_SHORT }}
       OS: ${{ matrix.OS }}
     steps:
       - uses: actions/checkout@v5
@@ -118,11 +119,11 @@ jobs:
             TAG=$GITHUB_SHA
           fi
           mv ./target/$TARGET/release/$EXEC ./$EXEC
-          tar -czf ./artifacts/$NAME-$TARGET_SHORT-$TAG.tar.gz $EXEC
+          mkdir ./artifacts/$TARGET_SHORT/$EXEC ./$EXEC
       - name: Archive artifact
         uses: actions/upload-artifact@v4
         with:
-          name: result
+          name: result-$TAG
           path: |
             ./artifacts
 

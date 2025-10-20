@@ -122,7 +122,7 @@ jobs:
           mkdir -p ./artifacts/$TARGET_SHORT
           cp ./$EXEC ./artifacts/$TARGET_SHORT/$EXEC
       - name: Archive artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: result
           path: |

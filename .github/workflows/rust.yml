@@ -36,12 +36,12 @@ jobs:
         # a list of all the targets
         include:
           - TARGET: x86_64-unknown-linux-gnu
-            TARGET_SHORT: amd64
+            TARGET_NAME: amd64
             OS: ubuntu-latest
           #- TARGET: x86_64-unknown-linux-musl
           #  OS: ubuntu-latest
           - TARGET: aarch64-unknown-linux-gnu
-            TARGET_SHORT: arm64
+            TARGET_NAME: arm64
             OS: ubuntu-latest
           #- TARGET: aarch64-unknown-linux-musl
           #  OS: ubuntu-latest
@@ -62,7 +62,7 @@ jobs:
     env:
       NAME: leech
       TARGET: ${{ matrix.TARGET }}
-      TARGET_SHORT: ${{ matrix.TARGET_SHORT }}
+      TARGET_NAME: ${{ matrix.TARGET_NAME }}
       OS: ${{ matrix.OS }}
     steps:
       - uses: actions/checkout@v5
@@ -120,7 +120,7 @@ jobs:
           fi
           
           mv ./target/$TARGET/release/$EXEC ./$EXEC
-          tar -czf ./artifacts/$NAME-$TARGET-$TAG.tar.gz $EXEC
+          tar -czf ./artifacts/$NAME-$TARGET_NAME-$TAG.tar.gz $EXEC
       - name: Archive artifact
         uses: actions/upload-artifact@v4
         with:

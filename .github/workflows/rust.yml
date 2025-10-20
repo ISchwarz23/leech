@@ -124,9 +124,9 @@ jobs:
       - name: Archive artifact
         uses: actions/upload-artifact@v4
         with:
-          name: result
+          name: result-${{ matrix.TARGET_NAME }}
           path: |
-            ./artifacts
+            ./$EXEC
 
   # deploys to github releases on tag
   deploy:

@@ -119,14 +119,12 @@ jobs:
             TAG=$GITHUB_SHA
           fi
           
-          mv ./target/$TARGET/release/$EXEC ./$EXEC
-          tar -czf ./artifacts/$NAME-$TARGET_NAME-$TAG.tar.gz $EXEC
+          mv ./target/$TARGET/release/$EXEC ./$NAME
       - name: Archive artifact
         uses: actions/upload-artifact@v4
         with:
-          name: result-${{ matrix.TARGET_NAME }}
-          path: |
-            ./$EXEC
+          name: ${{ env.name }}-${{ matrix.TARGET_NAME }}
+          path: ${{ env.name }}
 
   # deploys to github releases on tag
   deploy:

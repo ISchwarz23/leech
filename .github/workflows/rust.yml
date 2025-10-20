@@ -123,8 +123,8 @@ jobs:
       - name: Archive artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.name }}-${{ matrix.TARGET_NAME }}
-          path: ${{ env.name }}
+          name: ${{ env.NAME }}-${{ matrix.TARGET_NAME }}
+          path: ${{ env.NAME }}
 
   # deploys to github releases on tag
   deploy:

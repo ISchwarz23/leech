@@ -3,5 +3,5 @@
 version = 4
 
 [[package]]
-name = "bit-torrent-client"
+name = "leech"
 version = "0.1.0"

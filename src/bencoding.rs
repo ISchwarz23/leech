@@ -15,29 +15,87 @@ pub fn decode_file(file_path: &Path) -> Result<BencodeElement, Box<dyn std::erro
 mod tests {
     use super::*;
 
+    macro_rules! test_resource {
+        ($fname:expr) => {
+            concat!(env!("CARGO_MANIFEST_DIR"), "/resources/test/", $fname) // assumes Linux ('/')!
+        };
+    }
+
     #[test]
     fn str_test() {
-        let result = decode_file(&Path::new("str.test"));
-        println!("{:?}", result);
-        // assert_eq!(result.unwrap(), Str("Coding".to_string()));
+        // given
+        let input_file = test_resource!("str.test");
+
+        // when
+        let result = decode_file(&Path::new(input_file));
+
+        // then
+        match result {
+            Ok(result) => assert_eq!(result, Str("Coding".to_string())),
+            _ => assert!(false),
+        }
     }
 
     #[test]
     fn int_test() {
-        let result = decode_file(&Path::new("int.test"));
-        println!("{:?}", result);
+        // given
+        let input_file = test_resource!("int.test");
+
+        // when
+        let result = decode_file(&Path::new(input_file));
+
+        // then
+        match result {
+            Ok(result) => assert_eq!(result, Int(100)),
+            _ => assert!(false),
+        }
     }
 
     #[test]
     fn list_test() {
-        let result = decode_file(&Path::new("list.test"));
-        println!("{:?}", result);
+        // given
+        let input_file = test_resource!("list.test");
+
+        // when
+        let result = decode_file(&Path::new(input_file));
+
+        // then
+        match result {
+            Ok(result) => assert_eq!(
+                result,
+                List(vec![
+                    Str("Coding".to_string()),
+                    Str("Challenges".to_string())
+                ])
+            ),
+            _ => assert!(false),
+        }
     }
 
     #[test]
     fn dict_test() {
-        let result = decode_file(&Path::new("dict.test"));
-        println!("{:?}", result);
+        // given
+        let input_file = test_resource!("dict.test");
+
+        // when
+        let result = decode_file(&Path::new(input_file));
+
+        // then
+        let expected = Dict(BTreeMap::from([(
+            "Coding Challenges".to_string(),
+            Dict(
+                [
+                    ("Rating".to_string(), Str("Awesome".to_string())),
+                    ("website".to_string(), Str("codingchallenges.fyi".to_string())),
+                ]
+                .into_iter()
+                .collect::<BTreeMap<String, BencodeElement>>(),
+            ),
+        )]));
+        match result {
+            Ok(result) => assert_eq!(result, expected),
+            _ => assert!(false),
+        }
     }
 }
 

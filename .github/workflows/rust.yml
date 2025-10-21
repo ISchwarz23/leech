@@ -57,6 +57,11 @@ jobs:
           #  OS: macos-latest
           # - TARGET: x86_64-pc-windows-msvc
           #  OS: windows-latest
+          - TARGET: aarch64-linux-android
+            TARGET_NAME: arm64-android
+            OS: ubuntu-latest
+            NDK_VERSION: 26.1.10909125
+            API_LEVEL: 21
     needs: test
     runs-on: ${{ matrix.OS }}
     env:
@@ -64,6 +69,8 @@ jobs:
       TARGET: ${{ matrix.TARGET }}
       TARGET_NAME: ${{ matrix.TARGET_NAME }}
       OS: ${{ matrix.OS }}
+      NDK_VERSION: ${{ matrix.NDK_VERSION }}
+      API_LEVEL: ${{ matrix.API_LEVEL }}
     steps:
       - uses: actions/checkout@v5
       - name: Cargo cache
@@ -83,6 +90,15 @@ jobs:
             sudo apt-get install -qq crossbuild-essential-arm64 crossbuild-essential-armhf
           fi
 
+          # install NDK
+          [[ -n "$NDK_VERSION" ]]; then
+            mkdir -p $HOME/android-ndk
+            cd $HOME/android-ndk
+            curl -sSL https://dl.google.com/android/repository/android-ndk-${NDK_VERSION}-linux.zip -o ndk.zip
+            unzip -q ndk.zip
+            mv android-ndk-$${NDK_VERSION} ${NDK_VERSION}
+          fi
+
           # some additional configuration for cross-compilation on linux
           cat >>~/.cargo/config <<EOF
           [target.aarch64-unknown-linux-gnu]
@@ -97,6 +113,10 @@ jobs:
           linker = "arm-linux-gnueabihf-gcc"
           [target.arm-unknown-linux-musleabihf]
           linker = "arm-linux-gnueabihf-gcc"
+          [target.aarch64-linux-android]
+          ar = "$HOME/android-ndk/${NDK_VERSION}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android-ar"
+          linker = "$HOME/android-ndk/${NDK_VERSION}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android${API_LEVEL}-clang"
+          
           EOF
       - name: Install rust target
         run: rustup target add $TARGET
@@ -142,4 +162,4 @@ jobs:
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
-          files: ./artifacts/*.tar.gz
+          files: ./artifacts/*

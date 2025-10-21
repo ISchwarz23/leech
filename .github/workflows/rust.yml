@@ -60,7 +60,7 @@ jobs:
           - TARGET: aarch64-linux-android
             TARGET_NAME: arm64-android
             OS: ubuntu-latest
-            NDK_VERSION: 26.1.10909125
+            NDK_VERSION: r27d
             API_LEVEL: 21
     needs: test
     runs-on: ${{ matrix.OS }}

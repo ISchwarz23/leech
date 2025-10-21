@@ -4,9 +4,16 @@ use std::fmt;
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::Path;
+use reqwest::blocking::get;
 
-pub fn decode_file(file_path: &Path) -> Result<BencodeElement, Box<dyn std::error::Error>> {
-    let mut reader = BinFileReader::new(file_path)?;
+pub fn decode_from_file(file_path: &Path) -> Result<BencodeElement, Box<dyn std::error::Error>> {
+    let mut reader = BinFileReader::for_file(File::open(file_path)?);
+    reader.read_byte();
+    decode_element(&mut reader)
+}
+
+pub fn decode_from_url(file_url: &String) -> Result<BencodeElement, Box<dyn std::error::Error>> {
+    let mut reader = BinFileReader::for_file(get(file_url)?);
     reader.read_byte();
     decode_element(&mut reader)
 }
@@ -27,7 +34,7 @@ mod tests {
         let input_file = test_resource!("str.test");
 
         // when
-        let result = decode_file(&Path::new(input_file));
+        let result = decode_from_file(&Path::new(input_file));
 
         // then
         match result {
@@ -42,7 +49,7 @@ mod tests {
         let input_file = test_resource!("int.test");
 
         // when
-        let result = decode_file(&Path::new(input_file));
+        let result = decode_from_file(&Path::new(input_file));
 
         // then
         match result {
@@ -57,7 +64,7 @@ mod tests {
         let input_file = test_resource!("list.test");
 
         // when
-        let result = decode_file(&Path::new(input_file));
+        let result = decode_from_file(&Path::new(input_file));
 
         // then
         match result {
@@ -78,7 +85,7 @@ mod tests {
         let input_file = test_resource!("dict.test");
 
         // when
-        let result = decode_file(&Path::new(input_file));
+        let result = decode_from_file(&Path::new(input_file));
 
         // then
         let expected = Dict(BTreeMap::from([(
@@ -145,8 +152,8 @@ impl fmt::Display for BencodeElement {
     }
 }
 
-fn decode_element(
-    reader: &mut BinFileReader,
+fn decode_element<R: Read>(
+    reader: &mut BinFileReader<R>,
 ) -> Result<BencodeElement, Box<dyn std::error::Error>> {
     match reader.get_byte().unwrap() {
         b'0'..=b'9' => decode_str(reader),
@@ -157,7 +164,7 @@ fn decode_element(
     }
 }
 
-fn decode_dict(reader: &mut BinFileReader) -> Result<BencodeElement, Box<dyn std::error::Error>> {
+fn decode_dict<R: Read>(reader: &mut BinFileReader<R>) -> Result<BencodeElement, Box<dyn std::error::Error>> {
     let mut dict: BTreeMap<String, BencodeElement> = BTreeMap::new();
     reader.read_byte();
     while reader.get_byte().unwrap() != b'e' {
@@ -171,7 +178,7 @@ fn decode_dict(reader: &mut BinFileReader) -> Result<BencodeElement, Box<dyn std
     Ok(Dict(dict))
 }
 
-fn decode_list(reader: &mut BinFileReader) -> Result<BencodeElement, Box<dyn std::error::Error>> {
+fn decode_list<R: Read>(reader: &mut BinFileReader<R>) -> Result<BencodeElement, Box<dyn std::error::Error>> {
     let mut list = Vec::new();
     reader.read_byte();
     while reader.get_byte().unwrap() != b'e' {
@@ -181,7 +188,7 @@ fn decode_list(reader: &mut BinFileReader) -> Result<BencodeElement, Box<dyn std
     Ok(List(list))
 }
 
-fn decode_str(reader: &mut BinFileReader) -> Result<BencodeElement, Box<dyn std::error::Error>> {
+fn decode_str<R: Read>(reader: &mut BinFileReader<R>) -> Result<BencodeElement, Box<dyn std::error::Error>> {
     let mut length_str = "".to_string();
     while reader.get_byte().unwrap() != b':' {
         length_str.push(reader.get_byte().unwrap() as char);
@@ -197,7 +204,7 @@ fn decode_str(reader: &mut BinFileReader) -> Result<BencodeElement, Box<dyn std:
     Ok(Str(str))
 }
 
-fn decode_int(reader: &mut BinFileReader) -> Result<BencodeElement, Box<dyn std::error::Error>> {
+fn decode_int<R: Read>(reader: &mut BinFileReader<R>) -> Result<BencodeElement, Box<dyn std::error::Error>> {
     let mut int_as_str = "".to_string();
     while reader.read_and_get_byte() != Some(b'e') {
         int_as_str.push(reader.get_byte().unwrap() as char);
@@ -205,21 +212,20 @@ fn decode_int(reader: &mut BinFileReader) -> Result<BencodeElement, Box<dyn std:
     Ok(Int(int_as_str.parse::<i64>()?))
 }
 
-struct BinFileReader {
-    reader: BufReader<File>,
+struct BinFileReader<R: Read> {
+    reader: BufReader<R>,
     buffer: [u8; 1],
     reached_eof: bool,
 }
 
-impl BinFileReader {
-    fn new(file_path: &Path) -> Result<BinFileReader, Box<dyn std::error::Error>> {
-        let file = File::open(file_path)?;
-        let reader = BufReader::new(file);
-        Ok(Self {
+impl<R: Read> BinFileReader<R> {
+    fn for_file(read: R) -> BinFileReader<R> {
+        let reader = BufReader::new(read);
+        Self {
             reader,
             buffer: [0],
             reached_eof: false,
-        })
+        }
     }
 
     fn read_byte(&mut self) -> bool {

@@ -96,7 +96,7 @@ jobs:
             cd $HOME/android-ndk
             curl -sSL https://dl.google.com/android/repository/android-ndk-${NDK_VERSION}-linux.zip -o ndk.zip
             unzip -q ndk.zip
-            mv android-ndk-$${NDK_VERSION} ${NDK_VERSION}
+            mv android-ndk-${NDK_VERSION} ${NDK_VERSION}
           fi
 
           # some additional configuration for cross-compilation on linux

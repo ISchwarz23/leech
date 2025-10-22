@@ -88,11 +88,6 @@ jobs:
           # we make cross-compilation
           if [[ $OS =~ ^ubuntu.*$ ]]; then
             sudo apt-get install -qq crossbuild-essential-arm64 crossbuild-essential-armhf
-            if [[ $TARGET =~ ^aarch.*$ ]]; then
-              sudo dpkg --add-architecture arm64
-              sudo apt-get update
-              sudo apt-get install -qq libssl-dev:arm64
-            fi
           fi
 
           # install NDK
@@ -125,8 +120,10 @@ jobs:
           EOF
       - name: Install rust target
         run: rustup target add $TARGET
+      - name: Install cross
+        run: cargo install cross --locked
       - name: Run build
-        run: cargo build --release --verbose --target $TARGET
+        run: cross build --target $TARGET --release
       - name: List target
         run: find ./target
       - name: Compress

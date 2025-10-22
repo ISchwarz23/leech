@@ -175,6 +175,7 @@ fn decode_dict<R: Read>(reader: &mut BinFileReader<R>) -> Result<BencodeElement,
         let value = decode_element(reader)?;
         dict.insert(key, value);
     }
+    reader.read_byte();
     Ok(Dict(dict))
 }
 

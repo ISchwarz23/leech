@@ -1,3 +1,0 @@
-- create readme
-- add tests to workflow
-- reduce binary size

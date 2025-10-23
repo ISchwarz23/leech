@@ -27,11 +27,10 @@ jobs:
       - name: Install Android NDK
         if: matrix.target == 'aarch64-linux-android'
         run: |
-          curl -sSL https://dl.google.com/android/repository/android-ndk-r27d-linux.zip -o ndk.zip
-          unzip -q ndk.zip -d $HOME
-          mv android-ndk-r27d android-ndk
-          echo "ANDROID_NDK_HOME=$HOME/android-ndk" >> $GITHUB_ENV
-          echo "$HOME/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin" >> $GITHUB_PATH
+          wget https://dl.google.com/android/repository/android-ndk-r27d-linux.zip
+          unzip -q android-ndk-r27c-linux.zip -d $HOME
+          echo "ANDROID_NDK_HOME=$HOME/android-ndk-r27c" >> $GITHUB_ENV
+          echo "$HOME/android-ndk-r27c/toolchains/llvm/prebuilt/linux-x86_64/bin" >> $GITHUB_PATH
 
       - name: Set environment for Android build
         if: matrix.target == 'aarch64-linux-android'
@@ -45,8 +44,8 @@ jobs:
           [target.aarch64-unknown-linux-gnu]
           linker = "aarch64-linux-gnu-gcc"
           [target.aarch64-linux-android]
-          ar = "$HOME/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android-ar"
-          linker = "$HOME/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android21-clang"
+          ar = "$HOME/android-ndk-r27c/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android-ar"
+          linker = "$HOME/android-ndk-r27c/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android21-clang"
           EOF
 
       - name: Install rust target

@@ -1,4 +1,3 @@
 - create readme
-- clean up workflow
 - add tests to workflow
-- reduce binary sice
+- reduce binary size

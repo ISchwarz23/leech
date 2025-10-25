@@ -1,19 +1,19 @@
 use crate::bencoding::BencodeElement::{Dict, Int, List, Str};
+use reqwest::blocking::get;
 use std::collections::BTreeMap;
 use std::fmt;
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::Path;
-use reqwest::blocking::get;
 
 pub fn decode_from_file(file_path: &Path) -> Result<BencodeElement, Box<dyn std::error::Error>> {
-    let mut reader = BinFileReader::for_file(File::open(file_path)?);
+    let mut reader = BinFileReader::new(File::open(file_path)?);
     reader.read_byte();
     decode_element(&mut reader)
 }
 
 pub fn decode_from_url(file_url: &String) -> Result<BencodeElement, Box<dyn std::error::Error>> {
-    let mut reader = BinFileReader::for_file(get(file_url)?);
+    let mut reader = BinFileReader::new(get(file_url)?);
     reader.read_byte();
     decode_element(&mut reader)
 }
@@ -38,7 +38,14 @@ mod tests {
 
         // then
         match result {
-            Ok(result) => assert_eq!(result, Str("Coding".to_string())),
+            Ok(result) => assert_eq!(
+                result,
+                Str {
+                    value: "Coding".to_string(),
+                    start_index: 0,
+                    end_index: 7
+                }
+            ),
             _ => assert!(false),
         }
     }
@@ -53,7 +60,14 @@ mod tests {
 
         // then
         match result {
-            Ok(result) => assert_eq!(result, Int(100)),
+            Ok(result) => assert_eq!(
+                result,
+                Int {
+                    value: 100,
+                    start_index: 0,
+                    end_index: 4
+                }
+            ),
             _ => assert!(false),
         }
     }
@@ -70,10 +84,22 @@ mod tests {
         match result {
             Ok(result) => assert_eq!(
                 result,
-                List(vec![
-                    Str("Coding".to_string()),
-                    Str("Challenges".to_string())
-                ])
+                List {
+                    value: vec![
+                        Str {
+                            value: "Coding".to_string(),
+                            start_index: 1,
+                            end_index: 8
+                        },
+                        Str {
+                            value: "Challenges".to_string(),
+                            start_index: 9,
+                            end_index: 21
+                        }
+                    ],
+                    start_index: 0,
+                    end_index: 22
+                }
             ),
             _ => assert!(false),
         }
@@ -88,17 +114,37 @@ mod tests {
         let result = decode_from_file(&Path::new(input_file));
 
         // then
-        let expected = Dict(BTreeMap::from([(
-            "Coding Challenges".to_string(),
-            Dict(
-                [
-                    ("Rating".to_string(), Str("Awesome".to_string())),
-                    ("website".to_string(), Str("codingchallenges.fyi".to_string())),
-                ]
-                .into_iter()
-                .collect::<BTreeMap<String, BencodeElement>>(),
-            ),
-        )]));
+        let expected = Dict {
+            value: BTreeMap::from([(
+                "Coding Challenges".to_string(),
+                Dict {
+                    value: [
+                        (
+                            "Rating".to_string(),
+                            Str {
+                                value: "Awesome".to_string(),
+                                start_index: 30,
+                                end_index: 38,
+                            },
+                        ),
+                        (
+                            "website".to_string(),
+                            Str {
+                                value: "codingchallenges.fyi".to_string(),
+                                start_index: 48,
+                                end_index: 70,
+                            },
+                        ),
+                    ]
+                    .into_iter()
+                    .collect::<BTreeMap<String, BencodeElement>>(),
+                    start_index: 21,
+                    end_index: 71,
+                },
+            )]),
+            start_index: 0,
+            end_index: 72,
+        };
         match result {
             Ok(result) => assert_eq!(result, expected),
             _ => assert!(false),
@@ -108,10 +154,26 @@ mod tests {
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub enum BencodeElement {
-    Int(i64),
-    Str(String),
-    List(Vec<BencodeElement>),
-    Dict(BTreeMap<String, BencodeElement>),
+    Int {
+        value: i64,
+        start_index: usize,
+        end_index: usize,
+    },
+    Str {
+        value: String,
+        start_index: usize,
+        end_index: usize,
+    },
+    List {
+        value: Vec<BencodeElement>,
+        start_index: usize,
+        end_index: usize,
+    },
+    Dict {
+        value: BTreeMap<String, BencodeElement>,
+        start_index: usize,
+        end_index: usize,
+    },
 }
 
 impl BencodeElement {
@@ -125,16 +187,32 @@ impl BencodeElement {
         let no_pad = "".to_string();
 
         match self {
-            Int(i) => writeln!(f, "{}{}", if attached { no_pad } else { pad }, i),
-            Str(s) => writeln!(f, "{}\"{}\"", if attached { no_pad } else { pad }, s),
-            List(list) => {
+            Int {
+                value,
+                start_index: _start_index,
+                end_index: _end_index,
+            } => writeln!(f, "{}{}", if attached { no_pad } else { pad }, value),
+            Str {
+                value,
+                start_index: _start_index,
+                end_index: _end_index,
+            } => writeln!(f, "{}\"{}\"", if attached { no_pad } else { pad }, value),
+            List {
+                value: list,
+                start_index: _start_index,
+                end_index: _end_index,
+            } => {
                 writeln!(f, "{}[", if attached { no_pad } else { pad.to_string() })?;
                 for item in list {
                     item.fmt_with_indent(f, indent + 2, false)?;
                 }
                 writeln!(f, "{}]", pad)
             }
-            Dict(map) => {
+            Dict {
+                value: map,
+                start_index: _start_index,
+                end_index: _end_index,
+            } => {
                 writeln!(f, "{}{{", if attached { no_pad } else { pad.to_string() })?;
                 for (k, v) in map {
                     write!(f, "{}  \"{}\": ", pad, k)?;
@@ -160,37 +238,60 @@ fn decode_element<R: Read>(
         b'd' => decode_dict(reader),
         b'l' => decode_list(reader),
         b'i' => decode_int(reader),
-        _ => Ok(Int(0)), // TODO
+        _ => Err(Box::new(fmt::Error::default())), // TODO
     }
 }
 
-fn decode_dict<R: Read>(reader: &mut BinFileReader<R>) -> Result<BencodeElement, Box<dyn std::error::Error>> {
+fn decode_dict<R: Read>(
+    reader: &mut BinFileReader<R>,
+) -> Result<BencodeElement, Box<dyn std::error::Error>> {
     let mut dict: BTreeMap<String, BencodeElement> = BTreeMap::new();
+    let start_index = reader.get_current_index();
     reader.read_byte();
     while reader.get_byte().unwrap() != b'e' {
         let key = match decode_str(reader)? {
-            Str(ref value) => value.clone(),
+            Str {
+                value,
+                start_index: _start_index,
+                end_index: _end_index,
+            } => value.clone(),
             _ => "Error".to_string(), // TODO
         };
         let value = decode_element(reader)?;
         dict.insert(key, value);
     }
+    let end_index = reader.get_current_index();
     reader.read_byte();
-    Ok(Dict(dict))
+    Ok(Dict {
+        value: dict,
+        start_index,
+        end_index
+    })
 }
 
-fn decode_list<R: Read>(reader: &mut BinFileReader<R>) -> Result<BencodeElement, Box<dyn std::error::Error>> {
+fn decode_list<R: Read>(
+    reader: &mut BinFileReader<R>,
+) -> Result<BencodeElement, Box<dyn std::error::Error>> {
     let mut list = Vec::new();
+    let start_index = reader.get_current_index();
     reader.read_byte();
     while reader.get_byte().unwrap() != b'e' {
         list.push(decode_element(reader)?);
     }
+    let end_index = reader.get_current_index();
     reader.read_byte();
-    Ok(List(list))
+    Ok(List {
+        value: list,
+        start_index,
+        end_index
+    })
 }
 
-fn decode_str<R: Read>(reader: &mut BinFileReader<R>) -> Result<BencodeElement, Box<dyn std::error::Error>> {
+fn decode_str<R: Read>(
+    reader: &mut BinFileReader<R>,
+) -> Result<BencodeElement, Box<dyn std::error::Error>> {
     let mut length_str = "".to_string();
+    let start_index = reader.get_current_index();
     while reader.get_byte().unwrap() != b':' {
         length_str.push(reader.get_byte().unwrap() as char);
         reader.read_byte();
@@ -201,31 +302,45 @@ fn decode_str<R: Read>(reader: &mut BinFileReader<R>) -> Result<BencodeElement, 
     for _ in 0..length {
         str.push(reader.read_and_get_byte().unwrap() as char);
     }
+    let end_index = reader.get_current_index();
     reader.read_byte();
-    Ok(Str(str))
+    Ok(Str {
+        value: str,
+        start_index,
+        end_index
+    })
 }
 
-fn decode_int<R: Read>(reader: &mut BinFileReader<R>) -> Result<BencodeElement, Box<dyn std::error::Error>> {
+fn decode_int<R: Read>(
+    reader: &mut BinFileReader<R>,
+) -> Result<BencodeElement, Box<dyn std::error::Error>> {
+    let start_index = reader.get_current_index();
     let mut int_as_str = "".to_string();
     while reader.read_and_get_byte() != Some(b'e') {
         int_as_str.push(reader.get_byte().unwrap() as char);
     }
-    Ok(Int(int_as_str.parse::<i64>()?))
+    Ok(Int {
+        value: int_as_str.parse::<i64>()?,
+        start_index,
+        end_index: reader.get_current_index(),
+    })
 }
 
 struct BinFileReader<R: Read> {
     reader: BufReader<R>,
     buffer: [u8; 1],
     reached_eof: bool,
+    no_of_bytes_read: usize,
 }
 
 impl<R: Read> BinFileReader<R> {
-    fn for_file(read: R) -> BinFileReader<R> {
+    fn new(read: R) -> BinFileReader<R> {
         let reader = BufReader::new(read);
         Self {
             reader,
             buffer: [0],
             reached_eof: false,
+            no_of_bytes_read: 0,
         }
     }
 
@@ -234,6 +349,7 @@ impl<R: Read> BinFileReader<R> {
             .reader
             .read(&mut self.buffer)
             .expect("Error reading file");
+        self.no_of_bytes_read += no_of_bytes_read;
         self.reached_eof = no_of_bytes_read == 0;
         self.reached_eof
     }
@@ -249,5 +365,9 @@ impl<R: Read> BinFileReader<R> {
     fn read_and_get_byte(&mut self) -> Option<u8> {
         self.read_byte();
         self.get_byte()
+    }
+
+    fn get_current_index(&self) -> usize {
+        self.no_of_bytes_read - 1
     }
 }

@@ -1,19 +1,9 @@
 use crate::bencoding::BencodeElement::{Dict, Int, List, Str};
-use reqwest::blocking::get;
 use std::collections::BTreeMap;
 use std::fmt;
-use std::fs::File;
-use std::io::{BufReader, Read};
-use std::path::Path;
 
-pub fn decode_from_file(file_path: &Path) -> Result<BencodeElement, Box<dyn std::error::Error>> {
-    let mut reader = BinFileReader::new(File::open(file_path)?);
-    reader.read_byte();
-    decode_element(&mut reader)
-}
-
-pub fn decode_from_url(file_url: &String) -> Result<BencodeElement, Box<dyn std::error::Error>> {
-    let mut reader = BinFileReader::new(get(file_url)?);
+pub fn decode(content: Vec<u8>) -> Result<BencodeElement, Box<dyn std::error::Error>> {
+    let mut reader = BinFileReader::new(content);
     reader.read_byte();
     decode_element(&mut reader)
 }
@@ -22,19 +12,13 @@ pub fn decode_from_url(file_url: &String) -> Result<BencodeElement, Box<dyn std:
 mod tests {
     use super::*;
 
-    macro_rules! test_resource {
-        ($fname:expr) => {
-            concat!(env!("CARGO_MANIFEST_DIR"), "/resources/test/", $fname) // assumes Linux ('/')!
-        };
-    }
-
     #[test]
     fn str_test() {
         // given
-        let input_file = test_resource!("str.test");
+        let content = String::from("6:Coding").into_bytes();
 
         // when
-        let result = decode_from_file(&Path::new(input_file));
+        let result = decode(content);
 
         // then
         match result {
@@ -53,10 +37,10 @@ mod tests {
     #[test]
     fn int_test() {
         // given
-        let input_file = test_resource!("int.test");
+        let content = String::from("i100e").into_bytes();
 
         // when
-        let result = decode_from_file(&Path::new(input_file));
+        let result = decode(content);
 
         // then
         match result {
@@ -75,10 +59,10 @@ mod tests {
     #[test]
     fn list_test() {
         // given
-        let input_file = test_resource!("list.test");
+        let content = String::from("l6:Coding10:Challengese").into_bytes();
 
         // when
-        let result = decode_from_file(&Path::new(input_file));
+        let result = decode(content);
 
         // then
         match result {
@@ -108,10 +92,13 @@ mod tests {
     #[test]
     fn dict_test() {
         // given
-        let input_file = test_resource!("dict.test");
+        let content = String::from(
+            "d17:Coding Challengesd6:Rating7:Awesome7:website20:codingchallenges.fyiee",
+        )
+        .into_bytes();
 
         // when
-        let result = decode_from_file(&Path::new(input_file));
+        let result = decode(content);
 
         // then
         let expected = Dict {
@@ -230,8 +217,8 @@ impl fmt::Display for BencodeElement {
     }
 }
 
-fn decode_element<R: Read>(
-    reader: &mut BinFileReader<R>,
+fn decode_element(
+    reader: &mut BinFileReader,
 ) -> Result<BencodeElement, Box<dyn std::error::Error>> {
     match reader.get_byte().unwrap() {
         b'0'..=b'9' => decode_str(reader),
@@ -242,9 +229,7 @@ fn decode_element<R: Read>(
     }
 }
 
-fn decode_dict<R: Read>(
-    reader: &mut BinFileReader<R>,
-) -> Result<BencodeElement, Box<dyn std::error::Error>> {
+fn decode_dict(reader: &mut BinFileReader) -> Result<BencodeElement, Box<dyn std::error::Error>> {
     let mut dict: BTreeMap<String, BencodeElement> = BTreeMap::new();
     let start_index = reader.get_current_index();
     reader.read_byte();
@@ -265,13 +250,11 @@ fn decode_dict<R: Read>(
     Ok(Dict {
         value: dict,
         start_index,
-        end_index
+        end_index,
     })
 }
 
-fn decode_list<R: Read>(
-    reader: &mut BinFileReader<R>,
-) -> Result<BencodeElement, Box<dyn std::error::Error>> {
+fn decode_list(reader: &mut BinFileReader) -> Result<BencodeElement, Box<dyn std::error::Error>> {
     let mut list = Vec::new();
     let start_index = reader.get_current_index();
     reader.read_byte();
@@ -283,13 +266,11 @@ fn decode_list<R: Read>(
     Ok(List {
         value: list,
         start_index,
-        end_index
+        end_index,
     })
 }
 
-fn decode_str<R: Read>(
-    reader: &mut BinFileReader<R>,
-) -> Result<BencodeElement, Box<dyn std::error::Error>> {
+fn decode_str(reader: &mut BinFileReader) -> Result<BencodeElement, Box<dyn std::error::Error>> {
     let mut length_str = "".to_string();
     let start_index = reader.get_current_index();
     while reader.get_byte().unwrap() != b':' {
@@ -307,13 +288,11 @@ fn decode_str<R: Read>(
     Ok(Str {
         value: str,
         start_index,
-        end_index
+        end_index,
     })
 }
 
-fn decode_int<R: Read>(
-    reader: &mut BinFileReader<R>,
-) -> Result<BencodeElement, Box<dyn std::error::Error>> {
+fn decode_int(reader: &mut BinFileReader) -> Result<BencodeElement, Box<dyn std::error::Error>> {
     let start_index = reader.get_current_index();
     let mut int_as_str = "".to_string();
     while reader.read_and_get_byte() != Some(b'e') {
@@ -326,39 +305,31 @@ fn decode_int<R: Read>(
     })
 }
 
-struct BinFileReader<R: Read> {
-    reader: BufReader<R>,
-    buffer: [u8; 1],
-    reached_eof: bool,
-    no_of_bytes_read: usize,
+struct BinFileReader {
+    content: Vec<u8>,
+    index: usize,
 }
 
-impl<R: Read> BinFileReader<R> {
-    fn new(read: R) -> BinFileReader<R> {
-        let reader = BufReader::new(read);
-        Self {
-            reader,
-            buffer: [0],
-            reached_eof: false,
-            no_of_bytes_read: 0,
-        }
+impl BinFileReader {
+    // could be replaced by cursor?
+    fn new(content: Vec<u8>) -> BinFileReader {
+        Self { content, index: 0 }
+    }
+
+    fn reached_eof(&self) -> bool {
+        self.content.len() < self.index
     }
 
     fn read_byte(&mut self) -> bool {
-        let no_of_bytes_read = self
-            .reader
-            .read(&mut self.buffer)
-            .expect("Error reading file");
-        self.no_of_bytes_read += no_of_bytes_read;
-        self.reached_eof = no_of_bytes_read == 0;
-        self.reached_eof
+        self.index += 1;
+        self.reached_eof()
     }
 
     fn get_byte(&self) -> Option<u8> {
-        if self.reached_eof {
+        if self.reached_eof() {
             None
         } else {
-            Some(self.buffer[0])
+            Some(self.content[self.get_current_index()])
         }
     }
 
@@ -368,6 +339,6 @@ impl<R: Read> BinFileReader<R> {
     }
 
     fn get_current_index(&self) -> usize {
-        self.no_of_bytes_read - 1
+        self.index - 1
     }
 }

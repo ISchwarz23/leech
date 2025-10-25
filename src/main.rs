@@ -1,9 +1,13 @@
 mod bencoding;
 
-use crate::bencoding::{BencodeElement, decode_from_file, decode_from_url};
+use std::error::Error;
+use std::fs::File;
+use std::io::Read;
+use crate::bencoding::BencodeElement;
 use std::path::Path;
 
 use clap::Parser;
+use reqwest::blocking::get;
 
 #[derive(Parser, Debug)]
 #[command(
@@ -23,11 +27,9 @@ struct Cli {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
 
-    let result = if cli.input.as_str().starts_with("http") {
-        decode_from_url(&cli.input.as_str().to_string())?
-    } else {
-        decode_from_file(&Path::new(cli.input.as_str()))?
-    };
+    let torrent_file_location = cli.input.as_str();
+    let torrent_file_content = read_file_content(torrent_file_location)?;
+    let result = bencoding::decode(torrent_file_content)?;
 
     // if cli.debug {
     println!("{}", result);
@@ -58,4 +60,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     Ok(())
+}
+
+fn read_file_content(torrent_file_location: &str) -> Result<Vec<u8>, Box<dyn Error>> {
+    let mut torrent_file: Box<dyn Read> = if torrent_file_location.starts_with("http") {
+        Box::new(get(torrent_file_location)?)
+    } else {
+        Box::new(File::open(Path::new(torrent_file_location))?)
+    };
+
+    let mut torrent_file_content = Vec::new();
+    torrent_file.read_to_end(&mut torrent_file_content)?;
+    Ok(torrent_file_content)
 }

@@ -83,6 +83,7 @@ impl fmt::Display for BencodeElement {
 }
 
 
+#[allow(dead_code)]
 pub fn decode(content: Vec<u8>) -> Result<BencodeElement, Box<dyn std::error::Error>> {
     decode_from_cursor(&mut Cursor::new(content))
 }
@@ -145,7 +146,7 @@ fn decode_dict(cursor: &mut Cursor<Vec<u8>>) -> Result<BencodeElement, Box<dyn s
     }
     read_next_byte(cursor);
     let end_index = cursor.position();
-    
+
     Ok(Dict {
         value: dict,
         start_index,

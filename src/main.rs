@@ -57,8 +57,10 @@ fn main() -> Result<(), Box<dyn Error>> {
                 end_index,
             } = info
             {
+
+                let length = (end_index - start_index) as usize;
+                let mut info = vec![0u8; length];
                 torrent_file_content_cursor.set_position(*start_index);
-                let mut info = Vec::with_capacity((end_index - start_index) as usize);
                 torrent_file_content_cursor.read_exact(&mut info)?;
 
                 let mut hasher = Sha1::new();

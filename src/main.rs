@@ -2,12 +2,14 @@ mod bencoding;
 
 use std::error::Error;
 use std::fs::File;
-use std::io::Read;
+use std::io::{Cursor, Read};
 use crate::bencoding::BencodeElement;
 use std::path::Path;
 
 use clap::Parser;
 use reqwest::blocking::get;
+use sha1::{Digest, Sha1};
+
 
 #[derive(Parser, Debug)]
 #[command(
@@ -24,15 +26,19 @@ struct Cli {
     input: String,
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
 
+    // reading torrent file
     let torrent_file_location = cli.input.as_str();
     let torrent_file_content = read_file_content(torrent_file_location)?;
-    let result = bencoding::decode(torrent_file_content)?;
+
+    // decoding torrent file
+    let mut torrent_file_content_cursor = Cursor::new(torrent_file_content);
+    let result = bencoding::decode_from_cursor(&mut torrent_file_content_cursor)?;
 
     // if cli.debug {
-    println!("{}", result);
+    // println!("{}", result);
     // }
 
     if let BencodeElement::Dict {
@@ -51,8 +57,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 end_index,
             } = info
             {
-                println!("info starts at {} and ends at {}", start_index, end_index);
+                torrent_file_content_cursor.set_position(*start_index);
+                let mut info = Vec::with_capacity((end_index - start_index) as usize);
+                torrent_file_content_cursor.read_exact(&mut info)?;
 
+                let mut hasher = Sha1::new();
+                hasher.update(&info);
+                let info_hash = hasher.finalize();
+                println!("info hash: {:x}", info_hash);
             }
         }
     } else {

@@ -1,15 +1,16 @@
 mod bencoding;
+mod bencoding_helper;
+mod torrent_file;
 
 use std::error::Error;
 use std::fs::File;
 use std::io::{Cursor, Read};
-use crate::bencoding::BencodeElement;
 use std::path::Path;
 
+use crate::bencoding_helper::pretty_print;
+use crate::torrent_file::calculate_info_hash_as_string;
 use clap::Parser;
 use reqwest::blocking::get;
-use sha1::{Digest, Sha1};
-
 
 #[derive(Parser, Debug)]
 #[command(
@@ -35,43 +36,17 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // decoding torrent file
     let mut torrent_file_content_cursor = Cursor::new(torrent_file_content);
-    let result = bencoding::decode_from_cursor(&mut torrent_file_content_cursor)?;
+    let torrent_file_decoded = bencoding::decode_from_cursor(&mut torrent_file_content_cursor)?;
 
     // if cli.debug {
-    // println!("{}", result);
+    pretty_print(&torrent_file_decoded);
     // }
 
-    if let BencodeElement::Dict {
-        value: map,
-        start_index: _start_index,
-        end_index: _end_index,
-    } = result
-    {
-        if let Some(announce) = map.get("announce") {
-            println!("announce url: {:?}", announce);
-        }
-        if let Some(info) = map.get("info") {
-            if let BencodeElement::Dict {
-                value: _value,
-                start_index,
-                end_index,
-            } = info
-            {
-
-                let length = (end_index - start_index) as usize;
-                let mut info = vec![0u8; length];
-                torrent_file_content_cursor.set_position(*start_index);
-                torrent_file_content_cursor.read_exact(&mut info)?;
-
-                let mut hasher = Sha1::new();
-                hasher.update(&info);
-                let info_hash = hasher.finalize();
-                println!("info hash: {:x}", info_hash);
-            }
-        }
-    } else {
-        eprintln!("Expected dict but got something else");
-    }
+    println!(
+        "info hash: {}",
+        calculate_info_hash_as_string(&torrent_file_decoded, &mut torrent_file_content_cursor)
+            .unwrap_or("- na -".to_string())
+    );
 
     Ok(())
 }

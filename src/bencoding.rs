@@ -28,60 +28,6 @@ pub enum BencodeElement {
     },
 }
 
-impl BencodeElement {
-    fn fmt_with_indent(
-        &self,
-        f: &mut fmt::Formatter<'_>,
-        indent: usize,
-        attached: bool,
-    ) -> fmt::Result {
-        let pad = " ".repeat(indent);
-        let no_pad = "".to_string();
-
-        match self {
-            Int {
-                value,
-                start_index: _start_index,
-                end_index: _end_index,
-            } => writeln!(f, "{}{}", if attached { no_pad } else { pad }, value),
-            Str {
-                value,
-                start_index: _start_index,
-                end_index: _end_index,
-            } => writeln!(f, "{}\"{}\"", if attached { no_pad } else { pad }, value),
-            List {
-                value: list,
-                start_index: _start_index,
-                end_index: _end_index,
-            } => {
-                writeln!(f, "{}[", if attached { no_pad } else { pad.to_string() })?;
-                for item in list {
-                    item.fmt_with_indent(f, indent + 2, false)?;
-                }
-                writeln!(f, "{}]", pad)
-            }
-            Dict {
-                value: map,
-                start_index: _start_index,
-                end_index: _end_index,
-            } => {
-                writeln!(f, "{}{{", if attached { no_pad } else { pad.to_string() })?;
-                for (k, v) in map {
-                    write!(f, "{}  \"{}\": ", pad, k)?;
-                    v.fmt_with_indent(f, indent + 4, true)?;
-                }
-                writeln!(f, "{}}}", pad)
-            }
-        }
-    }
-}
-
-impl fmt::Display for BencodeElement {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.fmt_with_indent(f, 0, true)
-    }
-}
-
 
 #[allow(dead_code)]
 pub fn decode(content: Vec<u8>) -> Result<BencodeElement, Box<dyn std::error::Error>> {
